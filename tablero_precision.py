@@ -100,21 +100,33 @@ tab1, tab2, tab3 = st.tabs(["🌳 Árbol de Decisión", "📈 Regresión Logíst
 
 model_scores = {}
 
-# 🌳 **Árbol de Decisión**
+# 📌 Sección Árbol de Decisión en `st.tabs()`
 with tab1:
     st.subheader("🌳 Árbol de Decisión")
+
+    # Inicializar la variable en session_state si no existe
+    if "tree_trained" not in st.session_state:
+        st.session_state["tree_trained"] = False
+
+    # Botón para entrenar Árbol de Decisión
     if st.button("Entrenar Árbol de Decisión"):
         with st.spinner("Entrenando..."):
             from sklearn.tree import DecisionTreeClassifier
             tree_clf = DecisionTreeClassifier(max_depth=5)
             tree_clf.fit(X_train, y_train)
-            acc_tree = accuracy_score(y_test, tree_clf.predict(X_test))
-            st.metric("Precisión", f"{acc_tree:.4f}")
+            st.session_state["tree_acc"] = accuracy_score(y_test, tree_clf.predict(X_test))
+            st.session_state["tree_cm"] = confusion_matrix(y_test, tree_clf.predict(X_test))
+            st.session_state["tree_trained"] = True  # Marcar como entrenado
 
-            # 📊 Mostrar matriz de confusión
-            fig, ax = plt.subplots(figsize=(5, 4))
-            sns.heatmap(confusion_matrix(y_test, tree_clf.predict(X_test)), annot=True, fmt="d", cmap="Blues")
-            st.pyplot(fig)
+    # Mostrar resultados solo si el modelo fue entrenado
+    if st.session_state["tree_trained"]:
+        st.metric("Precisión", f"{st.session_state['tree_acc']:.4f}")
+
+        # 📊 Matriz de Confusión
+        fig, ax = plt.subplots(figsize=(5, 4))
+        sns.heatmap(st.session_state["tree_cm"], annot=True, fmt="d", cmap="Blues")
+        st.pyplot(fig)
+
 
 # 📈 **Regresión Logística**
 with tab2:
