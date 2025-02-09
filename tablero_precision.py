@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import label_binarize
 import requests
 import io
+import tempfile
 
 # 🛠️ Configuración de la página
 st.set_page_config(page_title="Tablero de Precisión del Modelo", page_icon="📊", layout="wide")
@@ -19,12 +20,17 @@ st.title("📊 Tablero de Evaluación del Modelo de Clasificación")
 
 # 📌 Cargar Dataset desde GitHub
 GITHUB_URL = "https://raw.githubusercontent.com/itanflores/tablero-modelo-streamlit/main/dataset_monitoreo_servers.csv"
-response = requests.get(GITHUB_URL)
+response = requests.get(GITHUB_URL, stream=True)
 if response.status_code != 200:
     st.error("❌ Error: No se pudo cargar el dataset desde GitHub.")
     st.stop()
 
-df = pd.read_csv(io.StringIO(response.text), encoding="utf-8", errors="ignore")
+# Guardar en un archivo temporal y leerlo con pandas
+with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as temp_file:
+    temp_file.write(response.content)
+    temp_path = temp_file.name
+
+df = pd.read_csv(temp_path, encoding="utf-8", errors="ignore")
 df.columns = df.columns.str.strip()
 
 # 📌 Preprocesamiento de Datos
