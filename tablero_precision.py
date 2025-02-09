@@ -86,25 +86,39 @@ st.plotly_chart(px.bar(df_importance.head(10), x="Importancia", y="Variable", or
 
 # 🔹 Sección 3: Comparación de Modelos en Tabla
 st.header("📊 Comparación de Modelos de Clasificación")
-model_scores = {"Random Forest": accuracy}
+st.markdown("**Nota:** Modelos ordenados del más rápido al más lento.")
 
-# Evaluar otros modelos de forma opcional
-if st.checkbox("Comparar con otros modelos"):
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.tree import DecisionTreeClassifier
-    models = {"Regresión Logística": LogisticRegression(max_iter=100), "Árbol de Decisión": DecisionTreeClassifier(max_depth=5)}
-    
-    with st.spinner("Entrenando modelos..."):
-        for name, clf in models.items():
-            try:
-                clf.fit(X_train, y_train)
-                model_scores[name] = accuracy_score(y_test, clf.predict(X_test))
-                sleep(0.5)  # Pequeña pausa para evitar bloqueos en Streamlit
-            except Exception as e:
-                model_scores[name] = np.nan  # Usar NaN en lugar de texto para evitar problemas en la tabla
-    
-    # Convertir a DataFrame y manejar NaN de manera segura
+# Checkboxes para seleccionar modelos
+run_tree = st.checkbox("Árbol de Decisión (🟢 Rápido)")
+run_logistic = st.checkbox("Regresión Logística (🟡 Moderado)")
+run_forest = st.checkbox("Random Forest (🔴 Lento)")
+
+model_scores = {}
+
+if run_tree:
+    with st.spinner("Entrenando Árbol de Decisión..."):
+        from sklearn.tree import DecisionTreeClassifier
+        tree_clf = DecisionTreeClassifier(max_depth=5)
+        tree_clf.fit(X_train, y_train)
+        model_scores["Árbol de Decisión"] = accuracy_score(y_test, tree_clf.predict(X_test))
+        sleep(0.5)
+
+if run_logistic:
+    with st.spinner("Entrenando Regresión Logística..."):
+        from sklearn.linear_model import LogisticRegression
+        log_clf = LogisticRegression(max_iter=100)
+        log_clf.fit(X_train, y_train)
+        model_scores["Regresión Logística"] = accuracy_score(y_test, log_clf.predict(X_test))
+        sleep(1)
+
+if run_forest:
+    with st.spinner("Entrenando Random Forest (puede tardar más)..."):
+        forest_clf = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42, n_jobs=-1)
+        forest_clf.fit(X_train, y_train)
+        model_scores["Random Forest"] = accuracy_score(y_test, forest_clf.predict(X_test))
+        sleep(2)
+
+if model_scores:
     df_scores = pd.DataFrame.from_dict(model_scores, orient='index', columns=["Precisión Promedio"]).reset_index()
     df_scores.rename(columns={"index": "Modelo"}, inplace=True)
-    df_scores.fillna("Error en el modelo", inplace=True)
     st.dataframe(df_scores)
