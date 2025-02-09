@@ -59,8 +59,8 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 # 🔹 Sección 1: Evaluación General del Modelo
 st.header("📌 Evaluación General del Modelo")
 
-# Entrenar modelo con hiperparámetros ajustados
-model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42, n_jobs=-1)
+# Restaurar max_depth=None en Random Forest
+model = RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42, n_jobs=-1)
 model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 
@@ -106,14 +106,14 @@ if run_tree:
 if run_logistic:
     with st.spinner("Entrenando Regresión Logística..."):
         from sklearn.linear_model import LogisticRegression
-        log_clf = LogisticRegression(max_iter=100)
+        log_clf = LogisticRegression(max_iter=200)  # Restauramos max_iter=200
         log_clf.fit(X_train, y_train)
         model_scores["Regresión Logística"] = accuracy_score(y_test, log_clf.predict(X_test))
         sleep(1)
 
 if run_forest:
     with st.spinner("Entrenando Random Forest (puede tardar más)..."):
-        forest_clf = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42, n_jobs=-1)
+        forest_clf = RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42, n_jobs=-1)
         forest_clf.fit(X_train, y_train)
         model_scores["Random Forest"] = accuracy_score(y_test, forest_clf.predict(X_test))
         sleep(2)
