@@ -18,13 +18,13 @@ st.set_page_config(page_title="Tablero de Precisión del Modelo", page_icon="�
 st.title("📊 Tablero de Evaluación del Modelo de Clasificación")
 
 # 📌 Cargar Dataset desde GitHub
-GITHUB_URL = "https://raw.githubusercontent.com/tu_usuario/tu_repositorio/main/dataset_monitoreo_servers.csv"
+GITHUB_URL = "https://raw.githubusercontent.com/itanflores/tablero-modelo-streamlit/main/dataset_monitoreo_servers.csv"
 response = requests.get(GITHUB_URL)
 if response.status_code != 200:
     st.error("❌ Error: No se pudo cargar el dataset desde GitHub.")
     st.stop()
 
-df = pd.read_csv(io.StringIO(response.text))
+df = pd.read_csv(io.StringIO(response.text), encoding="utf-8", errors="ignore")
 df.columns = df.columns.str.strip()
 
 # 📌 Preprocesamiento de Datos
