@@ -42,6 +42,7 @@ y = df["Estado del Sistema Codificado"]
 
 # Convertir datos categóricos en variables numéricas si existen
 X = pd.get_dummies(X, drop_first=True)
+X = X.reindex(columns=X.columns, fill_value=0)  # Asegurar misma estructura en entrenamiento y prueba
 
 # Optimización: Reducir el tamaño del dataset
 X = X.astype(np.float32)
@@ -76,7 +77,7 @@ st.pyplot(fig)
 # 🔹 Sección 2: Importancia de Variables
 st.header("📌 Importancia de Variables en la Predicción")
 importances = model.feature_importances_
-feature_importance_df = pd.DataFrame({"Variable": X.columns, "Importancia": importances}).sort_values(by="Importancia", ascending=False)
+feature_importance_df = pd.DataFrame({"Variable": X.columns, "Importancia": importances}).sort_values(by="Importancia", ascending=False).head(10)  # Reducir a 10 variables
 st.plotly_chart(px.bar(feature_importance_df, x="Importancia", y="Variable", orientation='h', title="📊 Importancia de Variables"), use_container_width=True)
 
 # 🔹 Sección 3: Comparación de Modelos
@@ -88,8 +89,11 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 models = {"Regresión Logística": LogisticRegression(max_iter=200), "Árbol de Decisión": DecisionTreeClassifier(max_depth=5)}
 for name, clf in models.items():
-    clf.fit(X_train, y_train)
-    model_scores[name] = accuracy_score(y_test, clf.predict(X_test))
+    try:
+        clf.fit(X_train, y_train)
+        model_scores[name] = accuracy_score(y_test, clf.predict(X_test))
+    except Exception as e:
+        model_scores[name] = f"Error: {str(e)}"
 
 # Visualización de comparación
 df_scores = pd.DataFrame.from_dict(model_scores, orient='index', columns=["Precisión"]).reset_index()
