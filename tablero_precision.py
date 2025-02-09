@@ -43,6 +43,10 @@ y = df["Estado del Sistema Codificado"]
 # Convertir datos categóricos en variables numéricas si existen
 X = pd.get_dummies(X, drop_first=True)
 
+# Optimización: Reducir el tamaño del dataset
+X = X.astype(np.float32)
+y = y.astype(np.int8)
+
 # Dividir los datos en entrenamiento y prueba
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
 
@@ -50,7 +54,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 st.header("📌 Evaluación General del Modelo")
 
 # Entrenar modelo
-model = RandomForestClassifier(n_estimators=100, random_state=42)
+model = RandomForestClassifier(n_estimators=50, max_depth=10, random_state=42, n_jobs=-1)
 model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 
@@ -63,7 +67,7 @@ st.text(classification_report(y_test, y_pred))
 # Matriz de Confusión
 conf_matrix = confusion_matrix(y_test, y_pred)
 st.subheader("📊 Matriz de Confusión")
-fig, ax = plt.subplots(figsize=(6, 4))
+fig, ax = plt.subplots(figsize=(5, 3))
 sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", xticklabels=["Inactivo", "Normal", "Advertencia", "Crítico"], yticklabels=["Inactivo", "Normal", "Advertencia", "Crítico"])
 plt.xlabel("Predicción")
 plt.ylabel("Real")
@@ -82,7 +86,7 @@ model_scores = {"Random Forest": accuracy}
 # Evaluar otros modelos
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
-models = {"Regresión Logística": LogisticRegression(max_iter=500), "Árbol de Decisión": DecisionTreeClassifier()}
+models = {"Regresión Logística": LogisticRegression(max_iter=200), "Árbol de Decisión": DecisionTreeClassifier(max_depth=5)}
 for name, clf in models.items():
     clf.fit(X_train, y_train)
     model_scores[name] = accuracy_score(y_test, clf.predict(X_test))
@@ -97,7 +101,7 @@ y_test_binarized = label_binarize(y_test, classes=[0, 1, 2, 3])
 y_score = model.predict_proba(X_test)
 fpr, tpr, roc_auc = {}, {}, {}
 
-fig_roc, ax_roc = plt.subplots(figsize=(8, 6))
+fig_roc, ax_roc = plt.subplots(figsize=(6, 4))
 colors = ["blue", "green", "orange", "red"]
 for i, color in enumerate(colors):
     fpr[i], tpr[i], _ = roc_curve(y_test_binarized[:, i], y_score[:, i])
