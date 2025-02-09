@@ -29,9 +29,15 @@ else:
 
 df.columns = df.columns.str.strip()
 
+# 📌 Verificar si la columna correcta existe
+if "Estado_Sistema" in df.columns:
+    df['Estado del Sistema Codificado'] = df['Estado_Sistema'].map({"Inactivo": 0, "Normal": 1, "Advertencia": 2, "Crítico": 3})
+else:
+    st.error("❌ Error: La columna 'Estado_Sistema' no se encuentra en el dataset.")
+    st.stop()
+
 # 📌 Preprocesamiento de Datos
-df['Estado del Sistema Codificado'] = df['Estado_Sistema'].map({"Inactivo": 0, "Normal": 1, "Advertencia": 2, "Crítico": 3})
-X = df.drop(["Estado del Sistema", "Estado del Sistema Codificado"], axis=1)
+X = df.drop(["Estado_Sistema", "Estado del Sistema Codificado"], axis=1)
 y = df["Estado del Sistema Codificado"]
 
 # Dividir los datos en entrenamiento y prueba
