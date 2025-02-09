@@ -56,16 +56,20 @@ st.header("📌 Evaluación General del Modelo")
 
 col1, col2, col3 = st.columns([1.5, 2, 2])
 
-col1.metric("📊 Precisión del Modelo", f"{accuracy_score(y_test, y_pred):.4f}")
+with col1:
+    st.metric("📊 Precisión del Modelo", f"{accuracy_score(y_test, y_pred):.4f}")
+    st.caption("🔹 La precisión mide la proporción de predicciones correctas. Valores más altos indican mejor desempeño.")
 
 with col2.expander("📋 Reporte de Clasificación"):
     st.text(classification_report(y_test, y_pred))
+    st.caption("🔹 El reporte muestra métricas clave como precisión, recall y F1-score para evaluar el desempeño en cada categoría.")
 
 with col3:
     st.write("📊 Matriz de Confusión")
     fig, ax = plt.subplots(figsize=(5, 4))
     sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt="d", cmap="Blues")
     st.pyplot(fig)
+    st.caption("🔹 La matriz de confusión muestra las predicciones correctas en la diagonal y los errores fuera de ella.")
 
 st.divider()
 
@@ -81,6 +85,7 @@ col4, col5 = st.columns([1.5, 3])
 
 with col4.expander("📋 Ver Variables Importantes", expanded=True):
     st.dataframe(df_importance.head(10), height=300)
+    st.caption("🔹 Muestra las 10 variables más importantes utilizadas por el modelo para la toma de decisiones.")
 
 fig_imp = px.bar(df_importance.head(10), 
                  x="Importancia", 
@@ -89,6 +94,7 @@ fig_imp = px.bar(df_importance.head(10),
                  title="📊 Importancia de Variables")
 
 col5.plotly_chart(fig_imp, use_container_width=True)
+st.caption("🔹 Este gráfico destaca qué variables tienen mayor peso en las predicciones del modelo.")
 
 st.divider()
 
@@ -98,17 +104,14 @@ st.header("📊 Comparación de Modelos de Clasificación")
 # 🔹 Pestañas para organizar cada modelo
 tab1, tab2, tab3 = st.tabs(["🌳 Árbol de Decisión", "📈 Regresión Logística", "🌲 Random Forest"])
 
-model_scores = {}
-
 # 📌 Sección Árbol de Decisión en `st.tabs()`
 with tab1:
     st.subheader("🌳 Árbol de Decisión")
+    st.caption("🔹 Modelo basado en reglas jerárquicas. Es fácil de interpretar pero puede sobreajustarse con demasiada profundidad.")
 
-    # Inicializar la variable en session_state si no existe
     if "tree_trained" not in st.session_state:
         st.session_state["tree_trained"] = False
 
-    # Botón para entrenar Árbol de Decisión
     if st.button("Entrenar Árbol de Decisión"):
         with st.spinner("Entrenando..."):
             from sklearn.tree import DecisionTreeClassifier
@@ -116,15 +119,16 @@ with tab1:
             tree_clf.fit(X_train, y_train)
             st.session_state["tree_acc"] = accuracy_score(y_test, tree_clf.predict(X_test))
             st.session_state["tree_cm"] = confusion_matrix(y_test, tree_clf.predict(X_test))
-            st.session_state["tree_trained"] = True  # Marcar como entrenado
+            st.session_state["tree_trained"] = True  
 
-    # Mostrar resultados solo si el modelo fue entrenado
     if st.session_state["tree_trained"]:
         st.metric("Precisión", f"{st.session_state['tree_acc']:.4f}")
 
 # 📈 **Regresión Logística**
 with tab2:
     st.subheader("📈 Regresión Logística")
+    st.caption("🔹 Modelo lineal utilizado para clasificaciones binarias o multiclase con buena interpretabilidad.")
+
     if st.button("Entrenar Regresión Logística"):
         with st.spinner("Entrenando..."):
             from sklearn.linear_model import LogisticRegression
@@ -137,10 +141,13 @@ with tab2:
             fig, ax = plt.subplots(figsize=(5, 4))
             sns.heatmap(confusion_matrix(y_test, log_clf.predict(X_test)), annot=True, fmt="d", cmap="Blues")
             st.pyplot(fig)
+            st.caption("🔹 La matriz de confusión evalúa qué tan bien el modelo distingue entre clases.")
 
 # 🌲 **Random Forest**
 with tab3:
     st.subheader("🌲 Random Forest")
+    st.caption("🔹 Conjunto de múltiples árboles de decisión que mejora la precisión y reduce el sobreajuste.")
+
     if st.button("Entrenar Random Forest"):
         with st.spinner("Entrenando..."):
             forest_clf = RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42, n_jobs=-1)
@@ -152,3 +159,5 @@ with tab3:
             fig, ax = plt.subplots(figsize=(5, 4))
             sns.heatmap(confusion_matrix(y_test, forest_clf.predict(X_test)), annot=True, fmt="d", cmap="Blues")
             st.pyplot(fig)
+            st.caption("🔹 Evalúa los aciertos y errores del modelo en la clasificación.")
+
