@@ -122,12 +122,6 @@ with tab1:
     if st.session_state["tree_trained"]:
         st.metric("Precisión", f"{st.session_state['tree_acc']:.4f}")
 
-        # 📊 Matriz de Confusión
-        fig, ax = plt.subplots(figsize=(5, 4))
-        sns.heatmap(st.session_state["tree_cm"], annot=True, fmt="d", cmap="Blues")
-        st.pyplot(fig)
-
-
 # 📈 **Regresión Logística**
 with tab2:
     st.subheader("📈 Regresión Logística")
