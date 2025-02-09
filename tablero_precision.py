@@ -54,17 +54,13 @@ y_pred = model.predict(X_test)
 # 📌 **Sección 1: Evaluación General del Modelo**
 st.header("📌 Evaluación General del Modelo")
 
-# 🔹 Reorganización con `st.columns()`
 col1, col2, col3 = st.columns([1.5, 2, 2])
 
-# 📊 **Métrica de Precisión** en `col1`
 col1.metric("📊 Precisión del Modelo", f"{accuracy_score(y_test, y_pred):.4f}")
 
-# 📋 **Reporte de Clasificación** en `col2`
 with col2.expander("📋 Reporte de Clasificación"):
     st.text(classification_report(y_test, y_pred))
 
-# 📊 **Matriz de Confusión** en `col3`
 with col3:
     st.write("📊 Matriz de Confusión")
     fig, ax = plt.subplots(figsize=(5, 4))
@@ -76,20 +72,16 @@ st.divider()
 # 📌 **Sección 2: Importancia de Variables**
 st.header("📊 Importancia de Variables en la Predicción")
 
-# 🔹 Obtener la importancia de variables
 df_importance = pd.DataFrame({
     "Variable": X.columns,
     "Importancia": model.feature_importances_
 }).sort_values(by="Importancia", ascending=False)
 
-# 📊 **Nueva distribución**
 col4, col5 = st.columns([1.5, 3])
 
-# 📋 **Tabla en un `expander`**
 with col4.expander("📋 Ver Variables Importantes", expanded=True):
     st.dataframe(df_importance.head(10), height=300)
 
-# 📊 **Gráfico de importancia en `col5`**
 fig_imp = px.bar(df_importance.head(10), 
                  x="Importancia", 
                  y="Variable", 
@@ -99,3 +91,59 @@ fig_imp = px.bar(df_importance.head(10),
 col5.plotly_chart(fig_imp, use_container_width=True)
 
 st.divider()
+
+# 📌 **Sección 3: Comparación de Modelos**
+st.header("📊 Comparación de Modelos de Clasificación")
+
+# 🔹 Pestañas para organizar cada modelo
+tab1, tab2, tab3 = st.tabs(["🌳 Árbol de Decisión", "📈 Regresión Logística", "🌲 Random Forest"])
+
+model_scores = {}
+
+# 🌳 **Árbol de Decisión**
+with tab1:
+    st.subheader("🌳 Árbol de Decisión")
+    if st.button("Entrenar Árbol de Decisión"):
+        with st.spinner("Entrenando..."):
+            from sklearn.tree import DecisionTreeClassifier
+            tree_clf = DecisionTreeClassifier(max_depth=5)
+            tree_clf.fit(X_train, y_train)
+            acc_tree = accuracy_score(y_test, tree_clf.predict(X_test))
+            st.metric("Precisión", f"{acc_tree:.4f}")
+
+            # 📊 Mostrar matriz de confusión
+            fig, ax = plt.subplots(figsize=(5, 4))
+            sns.heatmap(confusion_matrix(y_test, tree_clf.predict(X_test)), annot=True, fmt="d", cmap="Blues")
+            st.pyplot(fig)
+
+# 📈 **Regresión Logística**
+with tab2:
+    st.subheader("📈 Regresión Logística")
+    if st.button("Entrenar Regresión Logística"):
+        with st.spinner("Entrenando..."):
+            from sklearn.linear_model import LogisticRegression
+            log_clf = LogisticRegression(max_iter=200)
+            log_clf.fit(X_train, y_train)
+            acc_log = accuracy_score(y_test, log_clf.predict(X_test))
+            st.metric("Precisión", f"{acc_log:.4f}")
+
+            # 📊 Mostrar matriz de confusión
+            fig, ax = plt.subplots(figsize=(5, 4))
+            sns.heatmap(confusion_matrix(y_test, log_clf.predict(X_test)), annot=True, fmt="d", cmap="Blues")
+            st.pyplot(fig)
+
+# 🌲 **Random Forest**
+with tab3:
+    st.subheader("🌲 Random Forest")
+    if st.button("Entrenar Random Forest"):
+        with st.spinner("Entrenando..."):
+            forest_clf = RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42, n_jobs=-1)
+            forest_clf.fit(X_train, y_train)
+            acc_forest = accuracy_score(y_test, forest_clf.predict(X_test))
+            st.metric("Precisión", f"{acc_forest:.4f}")
+
+            # 📊 Mostrar matriz de confusión
+            fig, ax = plt.subplots(figsize=(5, 4))
+            sns.heatmap(confusion_matrix(y_test, forest_clf.predict(X_test)), annot=True, fmt="d", cmap="Blues")
+            st.pyplot(fig)
+
