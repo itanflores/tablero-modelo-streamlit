@@ -160,34 +160,60 @@ with tab3:
             sns.heatmap(confusion_matrix(y_test, forest_clf.predict(X_test)), annot=True, fmt="d", cmap="Blues")
             st.pyplot(fig)
             st.caption("🔹 Evalúa los aciertos y errores del modelo en la clasificación.")
-# 🔹 Nueva Sección: Evaluación del Modelo
-st.header("📈 Evaluación del Modelo")
 
-# Calcular la Curva ROC y el AUC
-y_true = df_filtrado["Estado del Sistema"].apply(lambda x: 1 if x == "Crítico" else 0)
-y_pred_proba = model.predict_proba(df_filtrado[["Uso CPU (%)", "Temperatura (°C)"]])[:, 1]
 
-fpr, tpr, thresholds = roc_curve(y_true, y_pred_proba)
-roc_auc = auc(fpr, tpr)
+# 🔹 Nueva Sección: Evaluación del Modelo con Curva ROC y AUC
+st.header("📈 Evaluación del Modelo con Curva ROC y AUC")
 
-# Crear la gráfica de la Curva ROC
-fig_roc = px.area(
-    x=fpr,
-    y=tpr,
-    title=f'Curva ROC (AUC = {roc_auc:.2f})',
-    labels=dict(x='Tasa de Falsos Positivos (FPR)', y='Tasa de Verdaderos Positivos (TPR)'),
-    width=700, height=500
-)
-fig_roc.add_shape(
-    type='line', line=dict(dash='dash'),
-    x0=0, x1=1, y0=0, y1=1
-)
-fig_roc.update_yaxes(scaleanchor="x", scaleratio=1)
-fig_roc.update_xaxes(constrain='domain')
+# Verificar si las columnas necesarias están presentes
+if "Estado del Sistema" not in df_filtrado.columns or "Uso CPU (%)" not in df_filtrado.columns or "Temperatura (°C)" not in df_filtrado.columns:
+    st.warning("⚠️ Advertencia: No se encontraron las columnas necesarias para calcular la Curva ROC.")
+else:
+    try:
+        # Convertir la columna "Estado del Sistema" a binario (1 para "Crítico", 0 para otros)
+        y_true = df_filtrado["Estado del Sistema"].apply(lambda x: 1 if x == "Crítico" else 0)
 
-# Mostrar la gráfica
-st.plotly_chart(fig_roc, use_container_width=True)
-st.write("""
-La **Curva ROC** muestra el rendimiento de un modelo de clasificación en todos los umbrales de clasificación.
-- **AUC (Área Bajo la Curva)**: Un valor cercano a 1 indica un modelo excelente, mientras que un valor cercano a 0.5 sugiere que el modelo no es mejor que una predicción aleatoria.
-""")
+        # Supongamos que tienes un modelo entrenado (por ejemplo, Regresión Logística)
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import roc_curve, auc
+
+        # Dividir los datos en características (X) y etiquetas (y)
+        X = df_filtrado[["Uso CPU (%)", "Temperatura (°C)"]]
+        y = y_true
+
+        # Entrenar un modelo de clasificación (Regresión Logística en este caso)
+        model = LogisticRegression()
+        model.fit(X, y)
+
+        # Obtener las probabilidades predichas para la clase positiva
+        y_pred_proba = model.predict_proba(X)[:, 1]
+
+        # Calcular la Curva ROC y el AUC
+        fpr, tpr, thresholds = roc_curve(y_true, y_pred_proba)
+        roc_auc = auc(fpr, tpr)
+
+        # Crear la gráfica de la Curva ROC
+        import plotly.express as px
+        fig_roc = px.area(
+            x=fpr,
+            y=tpr,
+            title=f'Curva ROC (AUC = {roc_auc:.2f})',
+            labels=dict(x='Tasa de Falsos Positivos (FPR)', y='Tasa de Verdaderos Positivos (TPR)'),
+            width=700, height=500
+        )
+        fig_roc.add_shape(
+            type='line', line=dict(dash='dash'),
+            x0=0, x1=1, y0=0, y1=1
+        )
+        fig_roc.update_yaxes(scaleanchor="x", scaleratio=1)
+        fig_roc.update_xaxes(constrain='domain')
+
+        # Mostrar la gráfica
+        st.plotly_chart(fig_roc, use_container_width=True)
+        st.write("""
+        La **Curva ROC** muestra el rendimiento de un modelo de clasificación en todos los umbrales de clasificación.
+        - **AUC (Área Bajo la Curva)**: Un valor cercano a 1 indica un modelo excelente, mientras que un valor cercano a 0.5 sugiere que el modelo no es mejor que una predicción aleatoria.
+        """)
+    except Exception as e:
+        st.error(f"❌ Error al calcular la Curva ROC: {e}")
