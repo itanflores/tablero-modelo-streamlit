@@ -160,3 +160,69 @@ with tab3:
             sns.heatmap(confusion_matrix(y_test, forest_clf.predict(X_test)), annot=True, fmt="d", cmap="Blues")
             st.pyplot(fig)
             st.caption("🔹 Evalúa los aciertos y errores del modelo en la clasificación.")
+
+# 🔹 Nueva Sección: Curva ROC y AUC
+st.header("📈 Curva ROC y AUC")
+
+# Verificar si el modelo ya está entrenado
+if "model" in locals() or "model" in globals():
+    try:
+        # Obtener las probabilidades predichas para cada clase
+        y_pred_proba = model.predict_proba(X_test)
+
+        # Calcular la Curva ROC y el AUC para cada clase
+        from sklearn.metrics import roc_curve, auc
+        from sklearn.preprocessing import label_binarize
+        import plotly.graph_objects as go
+
+        # Binarizar las etiquetas para multiclase
+        y_test_bin = label_binarize(y_test, classes=[0, 1, 2, 3])
+        n_classes = y_test_bin.shape[1]
+
+        # Calcular la Curva ROC y el AUC para cada clase
+        fpr = dict()
+        tpr = dict()
+        roc_auc = dict()
+        for i in range(n_classes):
+            fpr[i], tpr[i], _ = roc_curve(y_test_bin[:, i], y_pred_proba[:, i])
+            roc_auc[i] = auc(fpr[i], tpr[i])
+
+        # Crear la gráfica de la Curva ROC
+        fig_roc = go.Figure()
+        for i in range(n_classes):
+            fig_roc.add_trace(go.Scatter(
+                x=fpr[i],
+                y=tpr[i],
+                mode='lines',
+                name=f'Clase {i} (AUC = {roc_auc[i]:.2f})'
+            ))
+
+        # Añadir línea de referencia (clasificador aleatorio)
+        fig_roc.add_trace(go.Scatter(
+            x=[0, 1],
+            y=[0, 1],
+            mode='lines',
+            line=dict(dash='dash'),
+            name='Clasificador Aleatorio (AUC = 0.5)'
+        ))
+
+        # Configurar el diseño del gráfico
+        fig_roc.update_layout(
+            title='Curva ROC Multiclase',
+            xaxis_title='Tasa de Falsos Positivos (FPR)',
+            yaxis_title='Tasa de Verdaderos Positivos (TPR)',
+            legend_title="Clases",
+            width=800,
+            height=600
+        )
+
+        # Mostrar la gráfica
+        st.plotly_chart(fig_roc, use_container_width=True)
+        st.write("""
+        La **Curva ROC** muestra el rendimiento del modelo en la clasificación multiclase.
+        - **AUC (Área Bajo la Curva)**: Un valor cercano a 1 indica un modelo excelente, mientras que un valor cercano a 0.5 sugiere que el modelo no es mejor que una predicción aleatoria.
+        """)
+    except Exception as e:
+        st.error(f"❌ Error al calcular la Curva ROC: {e}")
+else:
+    st.warning("⚠️ Advertencia: El modelo no ha sido entrenado. Entrena el modelo primero para calcular la Curva ROC.")
