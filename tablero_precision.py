@@ -5,9 +5,9 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, roc_curve, auc
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import label_binarize, StandardScaler
+from sklearn.preprocessing import StandardScaler
 import requests
 import io
 
@@ -79,13 +79,12 @@ plt.ylabel("Real")
 st.pyplot(fig)
 
 # 🔹 Sección 2: Importancia de Variables
-st.header("📌 Importancia de Variables en la Predicción")
-importances = model.feature_importances_
-feature_importance_df = pd.DataFrame({"Variable": X.columns, "Importancia": importances}).sort_values(by="Importancia", ascending=False).head(10)
-st.plotly_chart(px.bar(feature_importance_df, x="Importancia", y="Variable", orientation='h', title="📊 Importancia de Variables"), use_container_width=True)
+df_importance = pd.DataFrame({"Variable": X.columns, "Importancia": model.feature_importances_}).sort_values(by="Importancia", ascending=False)
+st.header("📊 Importancia de Variables en la Predicción")
+st.plotly_chart(px.bar(df_importance.head(10), x="Importancia", y="Variable", orientation='h', title="📊 Importancia de Variables"), use_container_width=True)
 
-# 🔹 Sección 3: Comparación de Modelos
-st.header("📌 Comparación de Modelos de Clasificación")
+# 🔹 Sección 3: Comparación de Modelos en Tabla
+st.header("📊 Comparación de Modelos de Clasificación")
 model_scores = {"Random Forest": accuracy}
 
 # Evaluar otros modelos de forma opcional
@@ -100,22 +99,7 @@ if st.checkbox("Comparar con otros modelos"):
         except Exception as e:
             model_scores[name] = f"Error: {str(e)}"
     
-    # Visualización de comparación
-    df_scores = pd.DataFrame.from_dict(model_scores, orient='index', columns=["Precisión"]).reset_index()
-    st.plotly_chart(px.bar(df_scores, x="Precisión", y="index", orientation='h', title="📊 Precisión de Modelos"), use_container_width=True)
-
-# 🔹 Sección 4: Curvas ROC
-st.header("📌 Curvas ROC para Evaluación del Modelo")
-y_test_bin = label_binarize(y_test, classes=[0, 1, 2, 3])
-y_score = model.predict_proba(X_test)
-fig_roc, ax_roc = plt.subplots(figsize=(6, 4))
-for i in range(y_test_bin.shape[1]):
-    fpr, tpr, _ = roc_curve(y_test_bin[:, i], y_score[:, i])
-    roc_auc = auc(fpr, tpr)
-    ax_roc.plot(fpr, tpr, label=f'Clase {i} (AUC = {roc_auc:.2f})')
-ax_roc.plot([0, 1], [0, 1], 'k--', label='Línea Base')
-ax_roc.set_xlabel('FPR')
-ax_roc.set_ylabel('TPR')
-ax_roc.set_title('Curvas ROC')
-ax_roc.legend()
-st.pyplot(fig_roc)
+    # Mostrar tabla en lugar de gráfico
+    df_scores = pd.DataFrame.from_dict(model_scores, orient='index', columns=["Precisión Promedio"]).reset_index()
+    df_scores.rename(columns={"index": "Modelo"}, inplace=True)
+    st.dataframe(df_scores)
