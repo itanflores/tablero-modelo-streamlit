@@ -92,14 +92,16 @@ if st.checkbox("Comparar con otros modelos"):
     from sklearn.linear_model import LogisticRegression
     from sklearn.tree import DecisionTreeClassifier
     models = {"Regresión Logística": LogisticRegression(max_iter=200), "Árbol de Decisión": DecisionTreeClassifier(max_depth=5)}
+    
     for name, clf in models.items():
         try:
             clf.fit(X_train, y_train)
             model_scores[name] = accuracy_score(y_test, clf.predict(X_test))
         except Exception as e:
-            model_scores[name] = f"Error: {str(e)}"
+            model_scores[name] = np.nan  # Usar NaN en lugar de texto para evitar problemas en la tabla
     
-    # Mostrar tabla en lugar de gráfico
+    # Convertir a DataFrame y manejar NaN de manera segura
     df_scores = pd.DataFrame.from_dict(model_scores, orient='index', columns=["Precisión Promedio"]).reset_index()
     df_scores.rename(columns={"index": "Modelo"}, inplace=True)
+    df_scores.fillna("Error en el modelo", inplace=True)
     st.dataframe(df_scores)
