@@ -84,20 +84,21 @@ st.plotly_chart(px.bar(feature_importance_df, x="Importancia", y="Variable", ori
 st.header("📌 Comparación de Modelos de Clasificación")
 model_scores = {"Random Forest": accuracy}
 
-# Evaluar otros modelos
-from sklearn.linear_model import LogisticRegression
-from sklearn.tree import DecisionTreeClassifier
-models = {"Regresión Logística": LogisticRegression(max_iter=200), "Árbol de Decisión": DecisionTreeClassifier(max_depth=5)}
-for name, clf in models.items():
-    try:
-        clf.fit(X_train, y_train)
-        model_scores[name] = accuracy_score(y_test, clf.predict(X_test))
-    except Exception as e:
-        model_scores[name] = f"Error: {str(e)}"
-
-# Visualización de comparación
-df_scores = pd.DataFrame.from_dict(model_scores, orient='index', columns=["Precisión"]).reset_index()
-st.plotly_chart(px.bar(df_scores, x="Precisión", y="index", orientation='h', title="📊 Precisión de Modelos"), use_container_width=True)
+# Evaluar otros modelos de forma opcional
+if st.checkbox("Comparar con otros modelos"):
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.tree import DecisionTreeClassifier
+    models = {"Regresión Logística": LogisticRegression(max_iter=200), "Árbol de Decisión": DecisionTreeClassifier(max_depth=5)}
+    for name, clf in models.items():
+        try:
+            clf.fit(X_train, y_train)
+            model_scores[name] = accuracy_score(y_test, clf.predict(X_test))
+        except Exception as e:
+            model_scores[name] = f"Error: {str(e)}"
+    
+    # Visualización de comparación
+    df_scores = pd.DataFrame.from_dict(model_scores, orient='index', columns=["Precisión"]).reset_index()
+    st.plotly_chart(px.bar(df_scores, x="Precisión", y="index", orientation='h', title="📊 Precisión de Modelos"), use_container_width=True)
 
 # 🔹 Sección 4: Curva ROC
 st.header("📌 Curvas ROC/AUC")
