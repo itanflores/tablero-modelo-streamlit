@@ -152,4 +152,3 @@ with tab3:
             fig, ax = plt.subplots(figsize=(5, 4))
             sns.heatmap(confusion_matrix(y_test, forest_clf.predict(X_test)), annot=True, fmt="d", cmap="Blues")
             st.pyplot(fig)
-
