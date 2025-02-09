@@ -7,14 +7,14 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, roc_curve, auc
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import label_binarize
+from sklearn.preprocessing import label_binarize, StandardScaler
 import requests
 import io
 
 # 🛠️ Configuración de la página
 st.set_page_config(page_title="Tablero de Precisión del Modelo", page_icon="📊", layout="wide")
 
-# 📢 Título del tablero
+# 📌 Título del tablero
 st.title("📊 Tablero de Evaluación del Modelo de Clasificación")
 
 # 📌 Cargar Dataset desde GitHub con Git LFS
@@ -44,6 +44,10 @@ y = df["Estado del Sistema Codificado"]
 X = pd.get_dummies(X, drop_first=True)
 X = X.reindex(columns=X.columns, fill_value=0)  # Asegurar misma estructura en entrenamiento y prueba
 
+# Normalizar los datos para mejorar la estabilidad del modelo
+scaler = StandardScaler()
+X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
+
 # Optimización: Reducir el tamaño del dataset
 X = X.astype(np.float32)
 y = y.astype(np.int8)
@@ -54,8 +58,8 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 # 🔹 Sección 1: Evaluación General del Modelo
 st.header("📌 Evaluación General del Modelo")
 
-# Entrenar modelo
-model = RandomForestClassifier(n_estimators=50, max_depth=10, random_state=42, n_jobs=-1)
+# Entrenar modelo con hiperparámetros ajustados
+model = RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42, n_jobs=-1)
 model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 
@@ -77,7 +81,7 @@ st.pyplot(fig)
 # 🔹 Sección 2: Importancia de Variables
 st.header("📌 Importancia de Variables en la Predicción")
 importances = model.feature_importances_
-feature_importance_df = pd.DataFrame({"Variable": X.columns, "Importancia": importances}).sort_values(by="Importancia", ascending=False).head(10)  # Reducir a 10 variables
+feature_importance_df = pd.DataFrame({"Variable": X.columns, "Importancia": importances}).sort_values(by="Importancia", ascending=False).head(10)
 st.plotly_chart(px.bar(feature_importance_df, x="Importancia", y="Variable", orientation='h', title="📊 Importancia de Variables"), use_container_width=True)
 
 # 🔹 Sección 3: Comparación de Modelos
@@ -99,22 +103,3 @@ if st.checkbox("Comparar con otros modelos"):
     # Visualización de comparación
     df_scores = pd.DataFrame.from_dict(model_scores, orient='index', columns=["Precisión"]).reset_index()
     st.plotly_chart(px.bar(df_scores, x="Precisión", y="index", orientation='h', title="📊 Precisión de Modelos"), use_container_width=True)
-
-# 🔹 Sección 4: Curva ROC
-st.header("📌 Curvas ROC/AUC")
-y_test_binarized = label_binarize(y_test, classes=[0, 1, 2, 3])
-y_score = model.predict_proba(X_test)
-fpr, tpr, roc_auc = {}, {}, {}
-
-fig_roc, ax_roc = plt.subplots(figsize=(6, 4))
-colors = ["blue", "green", "orange", "red"]
-for i, color in enumerate(colors):
-    fpr[i], tpr[i], _ = roc_curve(y_test_binarized[:, i], y_score[:, i])
-    roc_auc[i] = auc(fpr[i], tpr[i])
-    ax_roc.plot(fpr[i], tpr[i], color=color, lw=2, label=f"Clase {i} (AUC = {roc_auc[i]:.2f})")
-ax_roc.plot([0, 1], [0, 1], color="gray", linestyle="--", lw=2)
-ax_roc.set_title("Curvas ROC por Clase")
-ax_roc.set_xlabel("Tasa de Falsos Positivos")
-ax_roc.set_ylabel("Tasa de Verdaderos Positivos")
-ax_roc.legend(loc="lower right")
-st.pyplot(fig_roc)
