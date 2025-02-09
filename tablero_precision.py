@@ -30,7 +30,7 @@ else:
 df.columns = df.columns.str.strip()
 
 # 📌 Preprocesamiento de Datos
-df['Estado del Sistema Codificado'] = df['Estado del Sistema'].map({"Inactivo": 0, "Normal": 1, "Advertencia": 2, "Crítico": 3})
+df['Estado del Sistema Codificado'] = df['Estado_Sistema'].map({"Inactivo": 0, "Normal": 1, "Advertencia": 2, "Crítico": 3})
 X = df.drop(["Estado del Sistema", "Estado del Sistema Codificado"], axis=1)
 y = df["Estado del Sistema Codificado"]
 
