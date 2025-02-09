@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import requests
 import io
+from concurrent.futures import ThreadPoolExecutor
 
 # 🛠️ Configuración de la página
 st.set_page_config(page_title="Tablero de Precisión del Modelo", page_icon="📊", layout="wide")
@@ -93,12 +94,18 @@ if st.checkbox("Comparar con otros modelos"):
     from sklearn.tree import DecisionTreeClassifier
     models = {"Regresión Logística": LogisticRegression(max_iter=200), "Árbol de Decisión": DecisionTreeClassifier(max_depth=5)}
     
-    for name, clf in models.items():
+    def train_model(name, clf):
         try:
             clf.fit(X_train, y_train)
-            model_scores[name] = accuracy_score(y_test, clf.predict(X_test))
+            return name, accuracy_score(y_test, clf.predict(X_test))
         except Exception as e:
-            model_scores[name] = np.nan  # Usar NaN en lugar de texto para evitar problemas en la tabla
+            return name, np.nan  # Usar NaN en lugar de texto para evitar problemas en la tabla
+    
+    with ThreadPoolExecutor() as executor:
+        results = executor.map(lambda x: train_model(x[0], x[1]), models.items())
+    
+    for name, score in results:
+        model_scores[name] = score
     
     # Convertir a DataFrame y manejar NaN de manera segura
     df_scores = pd.DataFrame.from_dict(model_scores, orient='index', columns=["Precisión Promedio"]).reset_index()
