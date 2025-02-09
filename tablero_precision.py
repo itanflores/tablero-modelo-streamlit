@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import requests
 import io
-from concurrent.futures import ThreadPoolExecutor
+from time import sleep
 
 # 🛠️ Configuración de la página
 st.set_page_config(page_title="Tablero de Precisión del Modelo", page_icon="📊", layout="wide")
@@ -60,7 +60,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 st.header("📌 Evaluación General del Modelo")
 
 # Entrenar modelo con hiperparámetros ajustados
-model = RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42, n_jobs=-1)
+model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42, n_jobs=-1)
 model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 
@@ -92,20 +92,16 @@ model_scores = {"Random Forest": accuracy}
 if st.checkbox("Comparar con otros modelos"):
     from sklearn.linear_model import LogisticRegression
     from sklearn.tree import DecisionTreeClassifier
-    models = {"Regresión Logística": LogisticRegression(max_iter=200), "Árbol de Decisión": DecisionTreeClassifier(max_depth=5)}
+    models = {"Regresión Logística": LogisticRegression(max_iter=100), "Árbol de Decisión": DecisionTreeClassifier(max_depth=5)}
     
-    def train_model(name, clf):
-        try:
-            clf.fit(X_train, y_train)
-            return name, accuracy_score(y_test, clf.predict(X_test))
-        except Exception as e:
-            return name, np.nan  # Usar NaN en lugar de texto para evitar problemas en la tabla
-    
-    with ThreadPoolExecutor() as executor:
-        results = executor.map(lambda x: train_model(x[0], x[1]), models.items())
-    
-    for name, score in results:
-        model_scores[name] = score
+    with st.spinner("Entrenando modelos..."):
+        for name, clf in models.items():
+            try:
+                clf.fit(X_train, y_train)
+                model_scores[name] = accuracy_score(y_test, clf.predict(X_test))
+                sleep(0.5)  # Pequeña pausa para evitar bloqueos en Streamlit
+            except Exception as e:
+                model_scores[name] = np.nan  # Usar NaN en lugar de texto para evitar problemas en la tabla
     
     # Convertir a DataFrame y manejar NaN de manera segura
     df_scores = pd.DataFrame.from_dict(model_scores, orient='index', columns=["Precisión Promedio"]).reset_index()
