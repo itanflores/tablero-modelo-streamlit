@@ -37,9 +37,9 @@ else:
     st.stop()
 
 # 📌 Preprocesamiento de Datos
-X = df.drop(["Estado_Sistema", "Estado del Sistema Codificado"], axis=1)
+df['Estado del Sistema Codificado'] = df['Estado del Sistema'].map({"Inactivo": 0, "Normal": 1, "Advertencia": 2, "Crítico": 3})
+X = df.drop(["Estado del Sistema", "Estado del Sistema Codificado"], axis=1)
 y = df["Estado del Sistema Codificado"]
-
 # Dividir los datos en entrenamiento y prueba
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
 
