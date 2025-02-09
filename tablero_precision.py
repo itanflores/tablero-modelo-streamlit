@@ -13,9 +13,9 @@ import io
 from time import sleep
 
 # 🛠️ Configuración de la página
-st.set_page_config(page_title="Tablero de Precisión del Modelo", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Tablero de Evaluación", page_icon="📊", layout="wide")
 
-# 📌 Título del tablero
+# 📌 Título principal del tablero
 st.title("📊 Tablero de Evaluación del Modelo de Clasificación")
 
 # 📌 Cargar Dataset desde GitHub con Git LFS
@@ -59,6 +59,9 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 # 🔹 Sección 1: Evaluación General del Modelo
 st.header("📌 Evaluación General del Modelo")
 
+# Usar columnas para distribuir métricas
+col1, col2 = st.columns(2)
+
 # Restaurar max_depth=None en Random Forest
 model = RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42, n_jobs=-1)
 model.fit(X_train, y_train)
@@ -66,32 +69,31 @@ y_pred = model.predict(X_test)
 
 # Métricas de evaluación
 accuracy = accuracy_score(y_test, y_pred)
-st.metric("Precisión del Modelo", f"{accuracy:.4f}")
-st.text("Reporte de Clasificación:")
-st.text(classification_report(y_test, y_pred))
+col1.metric("📊 Precisión del Modelo", f"{accuracy:.4f}")
 
 # Matriz de Confusión
-conf_matrix = confusion_matrix(y_test, y_pred)
 st.subheader("📊 Matriz de Confusión")
-fig, ax = plt.subplots(figsize=(5, 3))
-sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", xticklabels=["Inactivo", "Normal", "Advertencia", "Crítico"], yticklabels=["Inactivo", "Normal", "Advertencia", "Crítico"])
-plt.xlabel("Predicción")
-plt.ylabel("Real")
+fig, ax = plt.subplots(figsize=(6, 4))
+sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt="d", cmap="Blues")
 st.pyplot(fig)
 
+st.divider()
+
 # 🔹 Sección 2: Importancia de Variables
-df_importance = pd.DataFrame({"Variable": X.columns, "Importancia": model.feature_importances_}).sort_values(by="Importancia", ascending=False)
 st.header("📊 Importancia de Variables en la Predicción")
+df_importance = pd.DataFrame({"Variable": X.columns, "Importancia": model.feature_importances_}).sort_values(by="Importancia", ascending=False)
 st.plotly_chart(px.bar(df_importance.head(10), x="Importancia", y="Variable", orientation='h', title="📊 Importancia de Variables"), use_container_width=True)
+
+st.divider()
 
 # 🔹 Sección 3: Comparación de Modelos en Tabla
 st.header("📊 Comparación de Modelos de Clasificación")
 st.markdown("**Nota:** Modelos ordenados del más rápido al más lento.")
 
 # Checkboxes para seleccionar modelos
-run_tree = st.checkbox("Árbol de Decisión (🟢 Rápido)")
-run_logistic = st.checkbox("Regresión Logística (🟡 Moderado)")
-run_forest = st.checkbox("Random Forest (🔴 Lento)")
+run_tree = st.checkbox("🌳 Árbol de Decisión (🟢 Rápido)")
+run_logistic = st.checkbox("📈 Regresión Logística (🟡 Moderado)")
+run_forest = st.checkbox("🌲 Random Forest (🔴 Lento)")
 
 model_scores = {}
 
@@ -106,7 +108,7 @@ if run_tree:
 if run_logistic:
     with st.spinner("Entrenando Regresión Logística..."):
         from sklearn.linear_model import LogisticRegression
-        log_clf = LogisticRegression(max_iter=200)  # Restauramos max_iter=200
+        log_clf = LogisticRegression(max_iter=200)
         log_clf.fit(X_train, y_train)
         model_scores["Regresión Logística"] = accuracy_score(y_test, log_clf.predict(X_test))
         sleep(1)
@@ -121,4 +123,4 @@ if run_forest:
 if model_scores:
     df_scores = pd.DataFrame.from_dict(model_scores, orient='index', columns=["Precisión Promedio"]).reset_index()
     df_scores.rename(columns={"index": "Modelo"}, inplace=True)
-    st.dataframe(df_scores)
+    st.dataframe(df_scores, use_container_width=True)
