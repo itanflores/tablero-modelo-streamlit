@@ -40,6 +40,9 @@ else:
 X = df.drop(["Estado del Sistema", "Estado del Sistema Codificado"], axis=1)
 y = df["Estado del Sistema Codificado"]
 
+# Convertir datos categóricos en variables numéricas si existen
+X = pd.get_dummies(X, drop_first=True)
+
 # Dividir los datos en entrenamiento y prueba
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
 
