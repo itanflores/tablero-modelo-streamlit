@@ -60,7 +60,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 st.header("📌 Evaluación General del Modelo")
 
 # Usar columnas para distribuir métricas
-col1, col2 = st.columns(2)
+col1, col2 = st.columns([1, 1])
 
 # Restaurar max_depth=None en Random Forest
 model = RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42, n_jobs=-1)
@@ -70,6 +70,10 @@ y_pred = model.predict(X_test)
 # Métricas de evaluación
 accuracy = accuracy_score(y_test, y_pred)
 col1.metric("📊 Precisión del Modelo", f"{accuracy:.4f}")
+
+# Reporte de Clasificación
+st.subheader("📋 Reporte de Clasificación")
+st.text(classification_report(y_test, y_pred))
 
 # Matriz de Confusión
 st.subheader("📊 Matriz de Confusión")
