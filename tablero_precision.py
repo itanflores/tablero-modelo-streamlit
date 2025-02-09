@@ -103,3 +103,19 @@ if st.checkbox("Comparar con otros modelos"):
     # Visualización de comparación
     df_scores = pd.DataFrame.from_dict(model_scores, orient='index', columns=["Precisión"]).reset_index()
     st.plotly_chart(px.bar(df_scores, x="Precisión", y="index", orientation='h', title="📊 Precisión de Modelos"), use_container_width=True)
+
+# 🔹 Sección 4: Curvas ROC
+st.header("📌 Curvas ROC para Evaluación del Modelo")
+y_test_bin = label_binarize(y_test, classes=[0, 1, 2, 3])
+y_score = model.predict_proba(X_test)
+fig_roc, ax_roc = plt.subplots(figsize=(6, 4))
+for i in range(y_test_bin.shape[1]):
+    fpr, tpr, _ = roc_curve(y_test_bin[:, i], y_score[:, i])
+    roc_auc = auc(fpr, tpr)
+    ax_roc.plot(fpr, tpr, label=f'Clase {i} (AUC = {roc_auc:.2f})')
+ax_roc.plot([0, 1], [0, 1], 'k--', label='Línea Base')
+ax_roc.set_xlabel('FPR')
+ax_roc.set_ylabel('TPR')
+ax_roc.set_title('Curvas ROC')
+ax_roc.legend()
+st.pyplot(fig_roc)
