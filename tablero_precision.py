@@ -130,7 +130,7 @@ with tab2:
     if st.button("Entrenar Regresión Logística"):
         with st.spinner("Entrenando..."):
             from sklearn.linear_model import LogisticRegression
-            log_clf = LogisticRegression(max_iter=200)
+            log_clf = LogisticRegression(max_iter=50, n_jobs=-1)  # Menos iteraciones y paralelización
             log_clf.fit(X_train, y_train)
             st.session_state["modelo_entrenado"] = log_clf  # Guardar el modelo entrenado
             acc_log = accuracy_score(y_test, log_clf.predict(X_test))
@@ -141,7 +141,7 @@ with tab2:
             sns.heatmap(confusion_matrix(y_test, log_clf.predict(X_test)), annot=True, fmt="d", cmap="Blues")
             st.pyplot(fig)
             st.caption("🔹 La matriz de confusión evalúa qué tan bien el modelo distingue entre clases.")
-
+            
 # 🌲 **Random Forest**
 with tab3:
     st.subheader("🌲 Random Forest")
@@ -149,7 +149,13 @@ with tab3:
 
     if st.button("Entrenar Random Forest"):
         with st.spinner("Entrenando..."):
-            forest_clf = RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42, n_jobs=-1)
+            forest_clf = RandomForestClassifier(
+                n_estimators=50,  # Menos árboles
+                max_depth=10,     # Limitar la profundidad
+                max_samples=0.5,  # Usar solo el 50% de los datos para cada árbol
+                n_jobs=-1,        # Paralelización
+                random_state=42
+            )
             forest_clf.fit(X_train, y_train)
             st.session_state["modelo_entrenado"] = forest_clf  # Guardar el modelo entrenado
             acc_forest = accuracy_score(y_test, forest_clf.predict(X_test))
