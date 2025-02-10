@@ -109,19 +109,17 @@ with tab1:
     st.subheader("🌳 Árbol de Decisión")
     st.caption("🔹 Modelo basado en reglas jerárquicas. Es fácil de interpretar pero puede sobreajustarse con demasiada profundidad.")
 
-    if "tree_trained" not in st.session_state:
-        st.session_state["tree_trained"] = False
-
     if st.button("Entrenar Árbol de Decisión"):
         with st.spinner("Entrenando..."):
             from sklearn.tree import DecisionTreeClassifier
             tree_clf = DecisionTreeClassifier(max_depth=5)
             tree_clf.fit(X_train, y_train)
+            st.session_state["modelo_entrenado"] = tree_clf  # Guardar el modelo entrenado
             st.session_state["tree_acc"] = accuracy_score(y_test, tree_clf.predict(X_test))
             st.session_state["tree_cm"] = confusion_matrix(y_test, tree_clf.predict(X_test))
-            st.session_state["tree_trained"] = True  
+            st.session_state["tree_trained"] = True
 
-    if st.session_state["tree_trained"]:
+    if st.session_state.get("tree_trained", False):
         st.metric("Precisión", f"{st.session_state['tree_acc']:.4f}")
 
 # 📈 **Regresión Logística**
@@ -134,6 +132,7 @@ with tab2:
             from sklearn.linear_model import LogisticRegression
             log_clf = LogisticRegression(max_iter=200)
             log_clf.fit(X_train, y_train)
+            st.session_state["modelo_entrenado"] = log_clf  # Guardar el modelo entrenado
             acc_log = accuracy_score(y_test, log_clf.predict(X_test))
             st.metric("Precisión", f"{acc_log:.4f}")
 
@@ -152,6 +151,7 @@ with tab3:
         with st.spinner("Entrenando..."):
             forest_clf = RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42, n_jobs=-1)
             forest_clf.fit(X_train, y_train)
+            st.session_state["modelo_entrenado"] = forest_clf  # Guardar el modelo entrenado
             acc_forest = accuracy_score(y_test, forest_clf.predict(X_test))
             st.metric("Precisión", f"{acc_forest:.4f}")
 
@@ -164,11 +164,14 @@ with tab3:
 # 🔹 Nueva Sección: Curva ROC y AUC
 st.header("📈 Curva ROC y AUC")
 
-# Verificar si el modelo ya está entrenado
-if "model" in locals() or "model" in globals():
+# Verificar si hay un modelo entrenado
+if "modelo_entrenado" in st.session_state:
     try:
+        # Obtener el modelo entrenado
+        modelo = st.session_state["modelo_entrenado"]
+
         # Obtener las probabilidades predichas para cada clase
-        y_pred_proba = model.predict_proba(X_test)
+        y_pred_proba = modelo.predict_proba(X_test)
 
         # Calcular la Curva ROC y el AUC para cada clase
         from sklearn.metrics import roc_curve, auc
@@ -225,4 +228,4 @@ if "model" in locals() or "model" in globals():
     except Exception as e:
         st.error(f"❌ Error al calcular la Curva ROC: {e}")
 else:
-    st.warning("⚠️ Advertencia: El modelo no ha sido entrenado. Entrena el modelo primero para calcular la Curva ROC.")
+    st.warning("⚠️ Advertencia: No se ha entrenado ningún modelo. Entrena un modelo primero para calcular la Curva ROC.")
