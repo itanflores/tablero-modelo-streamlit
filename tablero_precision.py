@@ -12,10 +12,10 @@ import requests
 import io
 
 # Configuración de la página
-st.set_page_config(page_title="Tablero de Evaluación", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Tablero de Clasificación en Streamlit para la Gestión Predictiva de Infraestructura TI", page_icon="📊", layout="wide")
 
 # 📌 Título
-st.title("📊 Tablero de Evaluación del Modelo de Clasificación")
+st.title("📊 Tablero de Clasificación en Streamlit para la Gestión Predictiva de Infraestructura TI")
 
 # Cargar Dataset
 GITHUB_API_URL = "https://github.com/itanflores/tablero-modelo-streamlit/raw/main/dataset_monitoreo_servers.csv"
