@@ -9,6 +9,7 @@ from sklearn.metrics import confusion_matrix, classification_report, accuracy_sc
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import requests
+import boto3
 import io
 
 # Configuración de la página
@@ -17,14 +18,18 @@ st.set_page_config(page_title="Tablero de Clasificación en Streamlit para la Ge
 # 📌 Título
 st.title("📊 Tablero de Clasificación en Streamlit para la Gestión Predictiva de Infraestructura TI")
 
-# Cargar Dataset
-GITHUB_API_URL = "https://github.com/itanflores/tablero-modelo-streamlit/raw/main/dataset_monitoreo_servers.csv"
-response = requests.get(GITHUB_API_URL, stream=True)
+# Configurar S3
+BUCKET_NAME = "tfm-monitoring-data"
+FILE_NAME = "dataset_monitoreo_servers.csv"
 
-if response.status_code == 200:
-    df = pd.read_csv(io.BytesIO(response.content), encoding="utf-8")
-else:
-    st.error("❌ Error al descargar el dataset.")
+# Crear cliente S3
+s3 = boto3.client("s3")
+
+try:
+    obj = s3.get_object(Bucket=BUCKET_NAME, Key=FILE_NAME)
+    df = pd.read_csv(io.BytesIO(obj["Body"].read()), encoding="utf-8")
+except Exception as e:
+    st.error(f"❌ Error al descargar el dataset desde S3: {e}")
     st.stop()
 
 df.columns = df.columns.str.strip()
