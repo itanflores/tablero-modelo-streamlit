@@ -28,6 +28,10 @@ s3 = boto3.client("s3")
 try:
     obj = s3.get_object(Bucket=BUCKET_NAME, Key=FILE_NAME)
     df = pd.read_csv(io.BytesIO(obj["Body"].read()), encoding="utf-8")
+    df.columns = df.columns.str.strip()
+except boto3.exceptions.Boto3Error as e:
+    st.error(f"🚨 Error al conectar con S3: {e}")
+    st.stop()
 except Exception as e:
     st.error(f"❌ Error al descargar el dataset desde S3: {e}")
     st.stop()
