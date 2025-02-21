@@ -5,6 +5,7 @@ import numpy as np
 from google.cloud import storage
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
+from io import StringIO
 import os
 import json
 
@@ -22,11 +23,12 @@ def cargar_datos():
     try:
         blob = bucket.blob(ARCHIVO_DATOS)
         contenido = blob.download_as_text()
-        df = pd.read_csv(pd.compat.StringIO(contenido))
+        df = pd.read_csv(StringIO(contenido))  # ✅ Se usa StringIO correctamente
         return df
     except Exception as e:
         st.error(f"❌ Error al descargar el archivo desde GCP: {e}")
         return None
+
 
 df = cargar_datos()
 if df is None:
