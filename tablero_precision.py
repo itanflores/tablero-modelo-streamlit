@@ -71,7 +71,6 @@ col1, col2, col3 = st.columns([1.5, 2, 2])
 
 with col1:
     st.metric("📊 Precisión del Modelo", f"{accuracy_score(y_test, y_pred):.4f}")
-    st.caption("🔹 La precisión mide la proporción de predicciones correctas. Valores más altos indican mejor desempeño.")
 
 with col2.expander("📋 Reporte de Clasificación"):
     st.text(classification_report(y_test, y_pred))
@@ -119,5 +118,36 @@ fig_imp.update_layout(
 st.plotly_chart(fig_imp, use_container_width=True)
 
 st.divider()
+
+# 📌 **SECCIÓN 3: Comparación de Modelos** ✅  
+st.header("📊 Comparación de Modelos de Clasificación")
+
+tab1, tab2, tab3 = st.tabs(["🌳 Árbol de Decisión", "📈 Regresión Logística", "🌲 Random Forest"])
+
+with tab1:
+    st.subheader("🌳 Árbol de Decisión")
+    if st.button("Entrenar Árbol de Decisión"):
+        from sklearn.tree import DecisionTreeClassifier
+        tree_clf = DecisionTreeClassifier(max_depth=5)
+        tree_clf.fit(X_train, y_train)
+        acc_tree = accuracy_score(y_test, tree_clf.predict(X_test))
+        st.metric("Precisión", f"{acc_tree:.4f}")
+
+with tab2:
+    st.subheader("📈 Regresión Logística")
+    if st.button("Entrenar Regresión Logística"):
+        from sklearn.linear_model import LogisticRegression
+        log_clf = LogisticRegression(max_iter=50, n_jobs=-1)
+        log_clf.fit(X_train, y_train)
+        acc_log = accuracy_score(y_test, log_clf.predict(X_test))
+        st.metric("Precisión", f"{acc_log:.4f}")
+
+with tab3:
+    st.subheader("🌲 Random Forest")
+    if st.button("Entrenar Random Forest"):
+        forest_clf = RandomForestClassifier(n_estimators=50, max_depth=10, n_jobs=-1, random_state=42)
+        forest_clf.fit(X_train, y_train)
+        acc_forest = accuracy_score(y_test, forest_clf.predict(X_test))
+        st.metric("Precisión", f"{acc_forest:.4f}")
 
 st.success("✅ Datos cargados correctamente desde GCP")
