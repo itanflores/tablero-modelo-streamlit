@@ -1,108 +1,141 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
+import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
 from io import StringIO
 from google.cloud import storage
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, roc_curve, auc
-from sklearn.preprocessing import label_binarize
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, label_binarize
 
 # 📌 Configuración del Cliente de Google Cloud Storage
 BUCKET_NAME = "monitoreo_gcp_bucket"
 ARCHIVO_DATOS = "dataset_monitoreo_servers.csv"
-ARCHIVO_PROCESADO = "dataset_procesado.csv"
 
 # Inicializar cliente de Google Cloud Storage
 storage_client = storage.Client()
 bucket = storage_client.bucket(BUCKET_NAME)
 
-# 📌 Función para cargar los datos desde GCP Storage
+# 📌 Cargar Dataset desde GCP
 @st.cache_data
 def cargar_datos():
     try:
         blob = bucket.blob(ARCHIVO_DATOS)
         contenido = blob.download_as_text()
-        df = pd.read_csv(StringIO(contenido))
+        df = pd.read_csv(StringIO(contenido), encoding="utf-8")
         return df
     except Exception as e:
-        st.error(f"❌ Error al descargar el archivo desde GCP: {e}")
+        st.error(f"❌ Error al descargar el dataset desde GCP: {e}")
         return None
 
 df = cargar_datos()
 if df is None:
     st.stop()
 
+df.columns = df.columns.str.strip()  # Limpiar nombres de columnas
+
+# 📌 Verificar columna objetivo
+if "Estado del Sistema" in df.columns:
+    df['Estado del Sistema Codificado'] = df['Estado del Sistema'].map({"Inactivo": 0, "Normal": 1, "Advertencia": 2, "Crítico": 3})
+else:
+    st.error("❌ Error: La columna 'Estado del Sistema' no se encuentra.")
+    st.stop()
+
 # 📌 Preprocesamiento de Datos
-df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
 df.drop_duplicates(inplace=True)
 df.dropna(inplace=True)
 
-# Codificación ordinal para "Estado del Sistema"
-estado_mapping = {"Inactivo": 0, "Normal": 1, "Advertencia": 2, "Crítico": 3}
-df["Estado del Sistema Codificado"] = df["Estado del Sistema"].map(estado_mapping)
+# Convertir "Fecha" a datetime (si existe)
+if "Fecha" in df.columns:
+    df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
 
-# Codificación one-hot para "Tipo de Servidor"
-df = pd.get_dummies(df, columns=["Tipo de Servidor"], prefix="Servidor", drop_first=True)
+# Normalizar y codificar variables
+X = df.drop(["Estado del Sistema", "Estado del Sistema Codificado"], axis=1, errors="ignore")
+X = pd.get_dummies(X, drop_first=True)
+scaler = StandardScaler()
+X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
 
-# Normalización de métricas continuas
-scaler = MinMaxScaler()
-metricas_continuas = ["Uso CPU (%)", "Temperatura (°C)", "Carga de Red (MB/s)", "Latencia Red (ms)"]
-df[metricas_continuas] = scaler.fit_transform(df[metricas_continuas])
-
-# 📌 División en conjunto de entrenamiento y prueba
-X = df.drop(["Estado del Sistema", "Estado del Sistema Codificado", "Fecha", "Hostname"], axis=1, errors="ignore")
 y = df["Estado del Sistema Codificado"]
+
+# 📌 Dividir datos en entrenamiento y prueba
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
 
 # 📌 Entrenamiento del Modelo Random Forest
-rf_model = RandomForestClassifier(random_state=42, n_jobs=-1)
-rf_model.fit(X_train, y_train)
+model = RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42, n_jobs=-1)
+model.fit(X_train, y_train)
+y_pred = model.predict(X_test)
 
-# 📌 Predicción y Evaluación del Modelo
-y_pred = rf_model.predict(X_test)
-precision_modelo = accuracy_score(y_test, y_pred)
+# 📌 **Sección 1: Evaluación General del Modelo**
+st.title("📊 Tablero de Clasificación en Streamlit para la Gestión Predictiva de Infraestructura TI")
+st.header("📌 Evaluación General del Modelo")
 
-# 📌 Visualización en Streamlit
-st.title("📊 Monitoreo de Servidores - GCP")
+col1, col2, col3 = st.columns([1.5, 2, 2])
 
-st.sidebar.header("Filtros")
-estados_seleccionados = st.sidebar.multiselect("Selecciona Estados:", df["Estado del Sistema"].unique(), default=df["Estado del Sistema"].unique())
-df_filtrado = df[df["Estado del Sistema"].isin(estados_seleccionados)]
+with col1:
+    st.metric("📊 Precisión del Modelo", f"{accuracy_score(y_test, y_pred):.4f}")
+    st.caption("🔹 La precisión mide la proporción de predicciones correctas.")
 
-if df_filtrado.empty:
-    st.warning("⚠ No hay datos disponibles con los filtros seleccionados.")
-    st.stop()
+with col2.expander("📋 Reporte de Clasificación"):
+    st.text(classification_report(y_test, y_pred))
 
-# 📌 Gráficos en Streamlit
-st.subheader("📈 Evolución del Estado del Sistema")
-df_grouped = df_filtrado.groupby(["Fecha", "Estado del Sistema"]).size().reset_index(name="Cantidad")
-st.line_chart(df_grouped.pivot(index="Fecha", columns="Estado del Sistema", values="Cantidad").fillna(0))
+with col3:
+    st.write("📊 Matriz de Confusión")
+    fig, ax = plt.subplots(figsize=(5, 4))
+    sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt="d", cmap="Blues")
+    st.pyplot(fig)
 
-st.subheader("🌡 Distribución de Temperatura por Estado")
-fig, ax = plt.subplots(figsize=(8, 6))
-sns.boxplot(x=df["Estado del Sistema"], y=df["Temperatura (°C)"], ax=ax)
-st.pyplot(fig)
+st.divider()
 
-st.subheader("📊 Importancia de Variables en el Modelo")
-feature_importances = pd.DataFrame({"Variable": X_train.columns, "Importancia": rf_model.feature_importances_}).sort_values(by="Importancia", ascending=False)
-st.bar_chart(feature_importances.set_index("Variable"))
+# 📌 **Sección 2: Importancia de Variables**
+st.header("📊 Importancia de Variables en la Predicción")
 
-st.subheader("✅ Precisión del Modelo")
-st.metric(label="Precisión del Modelo Random Forest", value=f"{precision_modelo:.2%}")
+df_importance = pd.DataFrame({
+    "Variable": X.columns,
+    "Importancia": model.feature_importances_
+}).sort_values(by="Importancia", ascending=False)
 
-# 📌 Exportación de Datos Procesados a GCP Storage
-@st.cache_data
-def exportar_datos():
-    try:
-        blob_procesado = bucket.blob(ARCHIVO_PROCESADO)
-        blob_procesado.upload_from_string(df.to_csv(index=False), content_type="text/csv")
-        st.success(f"✅ Datos procesados exportados a {BUCKET_NAME}/{ARCHIVO_PROCESADO}")
-    except Exception as e:
-        st.error(f"❌ Error al exportar datos a GCP: {e}")
+col4, col5 = st.columns([1.5, 3])
 
-if st.button("📤 Guardar Datos Procesados en GCP"):
-    exportar_datos()
+with col4.expander("📋 Ver Variables Importantes", expanded=True):
+    st.dataframe(df_importance.head(10))
+
+fig_imp = px.bar(df_importance.head(10), 
+                 x="Importancia", 
+                 y="Variable", 
+                 orientation='h', 
+                 title="📊 Importancia de Variables")
+
+col5.plotly_chart(fig_imp, use_container_width=True)
+
+st.divider()
+
+# 📌 **Sección 3: Curva ROC y AUC**
+st.header("📈 Curva ROC y AUC")
+
+y_test_bin = label_binarize(y_test, classes=[0, 1, 2, 3])
+y_pred_proba = model.predict_proba(X_test)
+
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+for i in range(y_test_bin.shape[1]):
+    fpr[i], tpr[i], _ = roc_curve(y_test_bin[:, i], y_pred_proba[:, i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
+
+fig_roc = px.line(title="Curva ROC Multiclase")
+for i in range(y_test_bin.shape[1]):
+    fig_roc.add_scatter(x=fpr[i], y=tpr[i], mode='lines', name=f'Clase {i} (AUC = {roc_auc[i]:.2f})')
+
+fig_roc.add_scatter(x=[0, 1], y=[0, 1], mode='lines', line=dict(dash='dash'), name='Clasificador Aleatorio')
+
+st.plotly_chart(fig_roc, use_container_width=True)
+
+st.write("""
+La **Curva ROC** muestra el rendimiento del modelo en la clasificación multiclase.
+- **AUC (Área Bajo la Curva)**: Un valor cercano a 1 indica un modelo excelente.
+""")
+
+st.success("✅ Datos cargados correctamente desde GCP")
