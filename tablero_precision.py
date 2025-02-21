@@ -7,10 +7,14 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
+import boto3  # 📌 Agregamos la librería para S3
 
 # 📌 Configuración del Cliente de Google Cloud Storage
 BUCKET_NAME = "monitoreo_gcp_bucket"
 ARCHIVO_DATOS = "dataset_monitoreo_servers.csv"
+
+# 📌 Configuración de AWS S3
+S3_BUCKET_NAME = "tfm-monitoring-data"
 
 # Diccionario con los nombres de los datasets procesados para cada modelo
 ARCHIVOS_PROCESADOS = {
@@ -73,6 +77,25 @@ def procesar_datos(df, modelo):
 if "datos_procesados" not in st.session_state:
     st.session_state["datos_procesados"] = {}
 
+# 📌 Función para transferir archivo desde GCP a AWS S3
+def subir_a_s3(modelo):
+    try:
+        # Definir el nombre del archivo basado en el modelo
+        archivo_salida = ARCHIVOS_PROCESADOS[modelo]
+        S3_FILE_NAME = archivo_salida  # Mantiene el mismo nombre en S3
+        
+        # Inicializar cliente S3
+        s3_client = boto3.client("s3")
+        
+        # Descargar el archivo desde GCP y subirlo a S3
+        blob_procesado = bucket.blob(archivo_salida)
+        contenido = blob_procesado.download_as_bytes()
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_FILE_NAME, Body=contenido)
+
+        st.success(f"✅ Datos de {modelo} enviados a S3: s3://{S3_BUCKET_NAME}/{S3_FILE_NAME}")
+    except Exception as e:
+        st.error(f"❌ Error al enviar datos a S3: {e}")
+
 # 📌 SECCIÓN: COMPARACIÓN DE MODELOS
 st.header("📊 Comparación de Modelos de Clasificación")
 
@@ -87,7 +110,7 @@ for tab, modelo in zip([tab1, tab2, tab3], ARCHIVOS_PROCESADOS.keys()):
             st.session_state["datos_procesados"][modelo] = df_procesado
             st.success(f"✅ Datos procesados correctamente para {modelo}.")
 
-        # 📌 Botón de exportación de datos (solo aparece si los datos fueron procesados)
+        # 📌 Botón de exportación de datos a GCP
         if modelo in st.session_state["datos_procesados"]:
             def exportar_datos():
                 try:
@@ -101,3 +124,7 @@ for tab, modelo in zip([tab1, tab2, tab3], ARCHIVOS_PROCESADOS.keys()):
 
             if st.button(f"📤 Guardar Datos de {modelo} en GCP"):
                 exportar_datos()
+
+                # 📌 Botón para transferir a S3 (solo aparece si ya se exportó a GCP)
+                if st.button(f"🚀 Enviar Datos de {modelo} a S3"):
+                    subir_a_s3(modelo)
