@@ -11,6 +11,9 @@ import json
 # 📌 Configuración del cliente de Google Cloud Storage
 BUCKET_NAME = "monitoreo_gcp_bucket"
 ARCHIVO_DATOS = "dataset_monitoreo_servers.csv"
+# Inicializar cliente de Google Cloud Storage (usando autenticación predeterminada de GCP)
+storage_client = storage.Client()
+bucket = storage_client.bucket(BUCKET_NAME)
 bucket = storage_client.bucket(BUCKET_NAME)
 
 # 📌 Descargar el dataset desde Google Cloud Storage
