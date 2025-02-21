@@ -97,7 +97,7 @@ def subir_a_s3(modelo):
         st.error(f"❌ Error al enviar datos a S3: {e}")
 
 # 📌 SECCIÓN: COMPARACIÓN DE MODELOS
-st.header("📊 Comparación de Modelos de Clasificación")
+st.header("📊 Generación y Transferencia de Datasets por Modelos de Clasificación")
 
 tab1, tab2, tab3 = st.tabs(["🌳 Árbol de Decisión", "📈 Regresión Logística", "🌲 Random Forest"])
 
