@@ -1,153 +1,103 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import seaborn as sns
-import matplotlib.pyplot as plt
 import numpy as np
+from io import StringIO
 from google.cloud import storage
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-import io
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
 
-# 📌 Configuración de la página
-st.set_page_config(page_title="Tablero de Clasificación en Streamlit para la Gestión Predictiva de Infraestructura TI", 
-                   page_icon="📊", 
-                   layout="wide")
-
-# 📌 Título
-st.title("📊 Tablero de Clasificación en Streamlit para la Gestión Predictiva de Infraestructura TI")
-
-# 📌 Configuración de GCP Storage
+# 📌 Configuración del Cliente de Google Cloud Storage
 BUCKET_NAME = "monitoreo_gcp_bucket"
-FILE_NAME = "dataset_monitoreo_servers.csv"
+ARCHIVO_DATOS = "dataset_monitoreo_servers.csv"
+
+# Diccionario con los nombres de los datasets procesados para cada modelo
+ARCHIVOS_PROCESADOS = {
+    "Árbol de Decisión": "dataset_procesado_arbol_decision.csv",
+    "Regresión Logística": "dataset_procesado_regresion_logistica.csv",
+    "Random Forest": "dataset_procesado_random_forest.csv"
+}
 
 # Inicializar cliente de Google Cloud Storage
 storage_client = storage.Client()
 bucket = storage_client.bucket(BUCKET_NAME)
 
-# 📌 Cargar Dataset desde GCP
-try:
-    blob = bucket.blob(FILE_NAME)
-    contenido = blob.download_as_text()
-    df = pd.read_csv(io.StringIO(contenido), encoding="utf-8")
-    df.columns = df.columns.str.strip()
-except Exception as e:
-    st.error(f"❌ Error al descargar el dataset desde GCP: {e}")
+# 📌 Función para cargar los datos desde GCP Storage
+@st.cache_data
+def cargar_datos():
+    try:
+        blob = bucket.blob(ARCHIVO_DATOS)
+        contenido = blob.download_as_text()
+        df = pd.read_csv(StringIO(contenido))
+        return df
+    except Exception as e:
+        st.error(f"❌ Error al descargar el archivo desde GCP: {e}")
+        return None
+
+df = cargar_datos()
+if df is None:
     st.stop()
 
-# 📌 Verificar columna objetivo
-if "Estado del Sistema" in df.columns:
-    df['Estado del Sistema Codificado'] = df['Estado del Sistema'].map({"Inactivo": 0, "Normal": 1, "Advertencia": 2, "Crítico": 3})
-else:
-    st.error("❌ Error: La columna 'Estado del Sistema' no se encuentra.")
-    st.stop()
+# 📌 Función para procesar los datos (ahora se hace por modelo)
+def procesar_datos(df, modelo):
+    df_procesado = df.copy()
 
-# 📌 Preprocesamiento
-columnas_excluir = ["Estado del Sistema", "Estado del Sistema Codificado", "Fecha"]
-X = df.drop(columns=columnas_excluir, errors="ignore")
+    # Convertir fecha
+    df_procesado["Fecha"] = pd.to_datetime(df_procesado["Fecha"], errors="coerce")
 
-# 📌 Asegurar que solo quedan variables numéricas
-X = X.select_dtypes(include=[np.number])
+    # Eliminar duplicados y valores nulos
+    df_procesado.drop_duplicates(inplace=True)
+    df_procesado.dropna(inplace=True)
 
-# 📌 Aplicar StandardScaler solo a variables numéricas
-scaler = StandardScaler()
-X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
+    # Codificación ordinal para "Estado del Sistema"
+    estado_mapping = {"Inactivo": 0, "Normal": 1, "Advertencia": 2, "Crítico": 3}
+    df_procesado["Estado del Sistema Codificado"] = df_procesado["Estado del Sistema"].map(estado_mapping)
 
-# 📌 Dividir datos
-y = df["Estado del Sistema Codificado"]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
+    # Codificación one-hot para "Tipo de Servidor"
+    df_procesado = pd.get_dummies(df_procesado, columns=["Tipo de Servidor"], prefix="Servidor", drop_first=True)
 
-# 📌 Entrenamiento del modelo
-model = RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42, n_jobs=-1)
-model.fit(X_train, y_train)
-y_pred = model.predict(X_test)
+    # Normalización de métricas continuas (según modelo)
+    scaler = MinMaxScaler()
+    metricas_continuas = ["Uso CPU (%)", "Temperatura (°C)", "Carga de Red (MB/s)", "Latencia Red (ms)"]
 
-# 📌 **Sección 1: Evaluación General del Modelo**
-st.header("📌 Evaluación General del Modelo")
+    # Aplicamos escalado diferente si es Regresión Logística
+    if modelo == "Regresión Logística":
+        df_procesado[metricas_continuas] = (df_procesado[metricas_continuas] - df_procesado[metricas_continuas].mean()) / df_procesado[metricas_continuas].std()
+    else:
+        df_procesado[metricas_continuas] = scaler.fit_transform(df_procesado[metricas_continuas])
 
-col1, col2, col3 = st.columns([1.5, 2, 2])
+    return df_procesado
 
-with col1:
-    st.metric("📊 Precisión del Modelo", f"{accuracy_score(y_test, y_pred):.4f}")
+# 📌 Estado de datos procesados
+if "datos_procesados" not in st.session_state:
+    st.session_state["datos_procesados"] = {}
 
-with col2.expander("📋 Reporte de Clasificación"):
-    st.text(classification_report(y_test, y_pred))
-
-with col3:
-    st.write("📊 Matriz de Confusión")
-    fig, ax = plt.subplots(figsize=(5, 4))
-    sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt="d", cmap="Blues")
-    st.pyplot(fig)
-
-st.divider()
-
-# 📌 **Sección 2: Importancia de Variables**
-st.header("📊 Importancia de Variables en la Predicción")
-
-# 📌 Importancia de variables
-df_importance = pd.DataFrame({
-    "Variable": X.columns,
-    "Importancia": model.feature_importances_
-}).sort_values(by="Importancia", ascending=False)
-
-# 📌 Mostrar solo las 10 más importantes
-top_n = 10
-df_importance_top = df_importance.head(top_n)
-
-# 📌 Agregar color para resaltar la variable más importante
-df_importance_top["Color"] = ["red" if i == 0 else "blue" for i in range(len(df_importance_top))]
-
-fig_imp = px.bar(df_importance_top, 
-                 x="Importancia", 
-                 y="Variable", 
-                 orientation='h', 
-                 title="📊 Importancia de Variables",
-                 color="Color",  
-                 color_discrete_map={"red": "red", "blue": "blue"})
-
-# 📌 Mejorar visualización
-fig_imp.update_layout(
-    xaxis_tickangle=-45,   # Rotar etiquetas
-    xaxis_type="log",      # Usar escala logarítmica si hay mucha diferencia
-    yaxis=dict(categoryorder="total ascending")  # Ordenar de menor a mayor
-)
-
-# 📌 Mostrar gráfico en Streamlit
-st.plotly_chart(fig_imp, use_container_width=True)
-
-st.divider()
-
-# 📌 **SECCIÓN 3: Comparación de Modelos** ✅  
+# 📌 SECCIÓN: COMPARACIÓN DE MODELOS
 st.header("📊 Comparación de Modelos de Clasificación")
 
 tab1, tab2, tab3 = st.tabs(["🌳 Árbol de Decisión", "📈 Regresión Logística", "🌲 Random Forest"])
 
-with tab1:
-    st.subheader("🌳 Árbol de Decisión")
-    if st.button("Entrenar Árbol de Decisión"):
-        from sklearn.tree import DecisionTreeClassifier
-        tree_clf = DecisionTreeClassifier(max_depth=5)
-        tree_clf.fit(X_train, y_train)
-        acc_tree = accuracy_score(y_test, tree_clf.predict(X_test))
-        st.metric("Precisión", f"{acc_tree:.4f}")
+for tab, modelo in zip([tab1, tab2, tab3], ARCHIVOS_PROCESADOS.keys()):
+    with tab:
+        st.subheader(f"{modelo}")
 
-with tab2:
-    st.subheader("📈 Regresión Logística")
-    if st.button("Entrenar Regresión Logística"):
-        from sklearn.linear_model import LogisticRegression
-        log_clf = LogisticRegression(max_iter=50, n_jobs=-1)
-        log_clf.fit(X_train, y_train)
-        acc_log = accuracy_score(y_test, log_clf.predict(X_test))
-        st.metric("Precisión", f"{acc_log:.4f}")
+        if st.button(f"⚙️ Procesar Datos para {modelo}"):
+            df_procesado = procesar_datos(df, modelo)
+            st.session_state["datos_procesados"][modelo] = df_procesado
+            st.success(f"✅ Datos procesados correctamente para {modelo}.")
 
-with tab3:
-    st.subheader("🌲 Random Forest")
-    if st.button("Entrenar Random Forest"):
-        forest_clf = RandomForestClassifier(n_estimators=50, max_depth=10, n_jobs=-1, random_state=42)
-        forest_clf.fit(X_train, y_train)
-        acc_forest = accuracy_score(y_test, forest_clf.predict(X_test))
-        st.metric("Precisión", f"{acc_forest:.4f}")
+        # 📌 Botón de exportación de datos (solo aparece si los datos fueron procesados)
+        if modelo in st.session_state["datos_procesados"]:
+            def exportar_datos():
+                try:
+                    df_procesado = st.session_state["datos_procesados"][modelo]
+                    archivo_salida = ARCHIVOS_PROCESADOS[modelo]
+                    blob_procesado = bucket.blob(archivo_salida)
+                    blob_procesado.upload_from_string(df_procesado.to_csv(index=False), content_type="text/csv")
+                    st.success(f"✅ Datos procesados de {modelo} exportados a {BUCKET_NAME}/{archivo_salida}")
+                except Exception as e:
+                    st.error(f"❌ Error al exportar datos a GCP: {e}")
 
-st.success("✅ Datos cargados correctamente desde GCP")
+            if st.button(f"📤 Guardar Datos de {modelo} en GCP"):
+                exportar_datos()
