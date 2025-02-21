@@ -30,11 +30,10 @@ try:
     blob = bucket.blob(FILE_NAME)
     contenido = blob.download_as_text()
     df = pd.read_csv(io.StringIO(contenido), encoding="utf-8")
+    df.columns = df.columns.str.strip()
 except Exception as e:
     st.error(f"❌ Error al descargar el dataset desde GCP: {e}")
     st.stop()
-
-df.columns = df.columns.str.strip()  # Limpiar nombres de columnas
 
 # 📌 Verificar columna objetivo
 if "Estado del Sistema" in df.columns:
