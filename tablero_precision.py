@@ -11,14 +11,6 @@ import json
 # 📌 Configuración del cliente de Google Cloud Storage
 BUCKET_NAME = "monitoreo_gcp_bucket"
 ARCHIVO_DATOS = "dataset_monitoreo_servers.csv"
-
-# 📌 Autenticación con credenciales de GCP (usa variables de entorno o archivo JSON)
-if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
-    storage_client = storage.Client()
-else:
-    st.error("❌ No se encontraron credenciales de GCP. Configura GOOGLE_APPLICATION_CREDENTIALS correctamente.")
-    st.stop()
-
 bucket = storage_client.bucket(BUCKET_NAME)
 
 # 📌 Descargar el dataset desde Google Cloud Storage
