@@ -151,3 +151,76 @@ with tab3:
         st.metric("Precisión", f"{acc_forest:.4f}")
 
 st.success("✅ Datos cargados correctamente desde GCP")
+
+# 📌 Configuración del Cliente de Google Cloud Storage
+BUCKET_NAME = "monitoreo_gcp_bucket"
+ARCHIVO_DATOS = "dataset_monitoreo_servers.csv"
+ARCHIVO_PROCESADO = "dataset_procesado.csv"
+
+# Inicializar cliente de Google Cloud Storage
+storage_client = storage.Client()
+bucket = storage_client.bucket(BUCKET_NAME)
+
+# 📌 Función para cargar los datos desde GCP Storage
+@st.cache_data
+def cargar_datos():
+    try:
+        blob = bucket.blob(ARCHIVO_DATOS)
+        contenido = blob.download_as_text()
+        df = pd.read_csv(StringIO(contenido))
+        return df
+    except Exception as e:
+        st.error(f"❌ Error al descargar el archivo desde GCP: {e}")
+        return None
+
+df = cargar_datos()
+if df is None:
+    st.stop()
+
+# 📌 Función para procesar los datos
+def procesar_datos(df):
+    df_procesado = df.copy()
+
+    # Convertir fecha
+    df_procesado["Fecha"] = pd.to_datetime(df_procesado["Fecha"], errors="coerce")
+
+    # Eliminar duplicados y valores nulos
+    df_procesado.drop_duplicates(inplace=True)
+    df_procesado.dropna(inplace=True)
+
+    # Codificación ordinal para "Estado del Sistema"
+    estado_mapping = {"Inactivo": 0, "Normal": 1, "Advertencia": 2, "Crítico": 3}
+    df_procesado["Estado del Sistema Codificado"] = df_procesado["Estado del Sistema"].map(estado_mapping)
+
+    # Codificación one-hot para "Tipo de Servidor"
+    df_procesado = pd.get_dummies(df_procesado, columns=["Tipo de Servidor"], prefix="Servidor", drop_first=True)
+
+    # Normalización de métricas continuas
+    scaler = MinMaxScaler()
+    metricas_continuas = ["Uso CPU (%)", "Temperatura (°C)", "Carga de Red (MB/s)", "Latencia Red (ms)"]
+    df_procesado[metricas_continuas] = scaler.fit_transform(df_procesado[metricas_continuas])
+
+    return df_procesado
+
+# 📌 Botón para procesar datos
+if "datos_procesados" not in st.session_state:
+    st.session_state["datos_procesados"] = None
+
+if st.button("⚙️ Procesar Datos"):
+    df_procesado = procesar_datos(df)
+    st.session_state["datos_procesados"] = df_procesado
+    st.success("✅ Datos procesados correctamente.")
+
+# 📌 Botón para exportar los datos procesados a GCP (solo si ya se han procesado)
+if st.session_state["datos_procesados"] is not None:
+    def exportar_datos():
+        try:
+            df_procesado = st.session_state["datos_procesados"]
+            blob_procesado = bucket.blob(ARCHIVO_PROCESADO)
+            blob_procesado.upload_from_string(df_procesado.to_csv(index=False), content_type="text/csv")
+            st.success(f"✅ Datos procesados exportados a {BUCKET_NAME}/{ARCHIVO_PROCESADO}")
+        except Exception as e:
+            st.error(f"❌ Error al exportar datos a GCP: {e}")
+
+    if st.button("📤 Guardar Datos Procesados en GCP"):
+        exportar_datos()
