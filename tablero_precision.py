@@ -53,7 +53,17 @@ if "Fecha" in df.columns:
     df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
 
 # Normalizar y codificar variables
-X = df.drop(["Estado del Sistema", "Estado del Sistema Codificado"], axis=1, errors="ignore")
+# Eliminar columnas de tipo fecha o categóricas mal convertidas
+columnas_excluir = ["Estado del Sistema", "Estado del Sistema Codificado", "Fecha", "Hostname"]
+X = df.drop(columns=columnas_excluir, errors="ignore")
+
+# Verificar que solo quedan columnas numéricas
+X = X.select_dtypes(include=[np.number])
+
+# Aplicar StandardScaler solo a columnas numéricas
+scaler = StandardScaler()
+X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
+
 X = pd.get_dummies(X, drop_first=True)
 scaler = StandardScaler()
 X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
