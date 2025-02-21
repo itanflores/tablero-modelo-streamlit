@@ -53,18 +53,10 @@ if "Fecha" in df.columns:
     df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
 
 # Normalizar y codificar variables
-# Eliminar columnas de tipo fecha o categóricas mal convertidas
 columnas_excluir = ["Estado del Sistema", "Estado del Sistema Codificado", "Fecha", "Hostname"]
 X = df.drop(columns=columnas_excluir, errors="ignore")
+X = X.select_dtypes(include=[np.number])  # Asegurar que solo haya variables numéricas
 
-# Verificar que solo quedan columnas numéricas
-X = X.select_dtypes(include=[np.number])
-
-# Aplicar StandardScaler solo a columnas numéricas
-scaler = StandardScaler()
-X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
-
-X = pd.get_dummies(X, drop_first=True)
 scaler = StandardScaler()
 X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
 
@@ -86,7 +78,6 @@ col1, col2, col3 = st.columns([1.5, 2, 2])
 
 with col1:
     st.metric("📊 Precisión del Modelo", f"{accuracy_score(y_test, y_pred):.4f}")
-    st.caption("🔹 La precisión mide la proporción de predicciones correctas.")
 
 with col2.expander("📋 Reporte de Clasificación"):
     st.text(classification_report(y_test, y_pred))
@@ -107,22 +98,39 @@ df_importance = pd.DataFrame({
     "Importancia": model.feature_importances_
 }).sort_values(by="Importancia", ascending=False)
 
-col4, col5 = st.columns([1.5, 3])
-
-with col4.expander("📋 Ver Variables Importantes", expanded=True):
-    st.dataframe(df_importance.head(10))
-
-fig_imp = px.bar(df_importance.head(10), 
-                 x="Importancia", 
-                 y="Variable", 
-                 orientation='h', 
-                 title="📊 Importancia de Variables")
-
-col5.plotly_chart(fig_imp, use_container_width=True)
+st.bar_chart(df_importance.set_index("Variable"))
 
 st.divider()
 
-# 📌 **Sección 3: Curva ROC y AUC**
+# 📌 **Sección 3: Comparación de Modelos**
+st.header("📊 Comparación de Modelos de Clasificación")
+
+# 🔹 Inicializar `st.session_state`
+if "tree_trained" not in st.session_state:
+    st.session_state["tree_trained"] = False
+if "tree_acc" not in st.session_state:
+    st.session_state["tree_acc"] = None
+
+# 🔹 Pestañas de modelos
+tab1, tab2, tab3 = st.tabs(["🌳 Árbol de Decisión", "📈 Regresión Logística", "🌲 Random Forest"])
+
+with tab1:
+    st.subheader("🌳 Árbol de Decisión")
+
+    if st.button("Entrenar Árbol de Decisión"):
+        with st.spinner("Entrenando..."):
+            from sklearn.tree import DecisionTreeClassifier
+            tree_clf = DecisionTreeClassifier(max_depth=5)
+            tree_clf.fit(X_train, y_train)
+            st.session_state["tree_acc"] = accuracy_score(y_test, tree_clf.predict(X_test))
+            st.session_state["tree_trained"] = True
+
+    if st.session_state.get("tree_trained", False):
+        st.metric("Precisión", f"{st.session_state['tree_acc']:.4f}")
+
+st.divider()
+
+# 📌 **Curva ROC y AUC**
 st.header("📈 Curva ROC y AUC")
 
 y_test_bin = label_binarize(y_test, classes=[0, 1, 2, 3])
@@ -142,10 +150,5 @@ for i in range(y_test_bin.shape[1]):
 fig_roc.add_scatter(x=[0, 1], y=[0, 1], mode='lines', line=dict(dash='dash'), name='Clasificador Aleatorio')
 
 st.plotly_chart(fig_roc, use_container_width=True)
-
-st.write("""
-La **Curva ROC** muestra el rendimiento del modelo en la clasificación multiclase.
-- **AUC (Área Bajo la Curva)**: Un valor cercano a 1 indica un modelo excelente.
-""")
 
 st.success("✅ Datos cargados correctamente desde GCP")
